@@ -28,6 +28,16 @@ $updatedgradesonly = optional_param('updatedgradesonly', false, PARAM_BOOL);
 $displaytype       = optional_param('displaytype', $CFG->grade_export_displaytype, PARAM_INT);
 $decimalpoints     = optional_param('decimalpoints', $CFG->grade_export_decimalpoints, PARAM_INT);
 
+$fields = array('idnumber', 'email', 'institution', 'department');
+$allowed = explode(',',get_config('gradeexport_csv', 'userfields'));
+
+$data = new stdClass;
+foreach ($fields as $field) {
+    if (in_array($field, $allowed) and optional_param($field, null, PARAM_INT)) {
+        $data->$field = 1;
+    }
+}
+
 if (!$course = $DB->get_record('course', array('id'=>$id))) {
     print_error('nocourseid');
 }
@@ -46,6 +56,7 @@ if (groups_get_course_groupmode($COURSE) == SEPARATEGROUPS and !has_capability('
 
 // print all the exported data here
 $export = new grade_export_csv($course, $groupid, $itemids, $export_feedback, $updatedgradesonly, $displaytype, $decimalpoints, $separator);
+
+$export->process_form($data);
+
 $export->print_grades();
-
-

@@ -36,7 +36,30 @@ class grade_export_csv extends grade_export {
     public function get_export_params() {
         $params = parent::get_export_params();
         $params['separator'] = $this->separator;
+        foreach($this->userfields as $key => $field) {
+            $params[$key] = 1;
+        }
         return $params;
+    }
+
+    public function process_form($data) {
+        $this->userfields = array(
+            'firstname' => get_string('firstname'),
+            'lastname' => get_string('lastname')
+        );
+
+        $fields = array(
+            'idnumber' => get_string('idnumber'),
+            'email' => get_string('email'),
+            'institution' => get_string('institution'),
+            'department' => get_string('department')
+        );
+
+        foreach ($fields as $key => $field) {
+            if (isset($data->$key)) {
+                $this->userfields[$key] = $field;
+            }
+        }
     }
 
     public function print_grades() {
@@ -63,12 +86,7 @@ class grade_export_csv extends grade_export {
         header("Content-Disposition: attachment; filename=\"$downloadfilename.csv\"");
 
 /// Print names of all the fields
-        echo get_string("firstname").$separator.
-             get_string("lastname").$separator.
-             get_string("idnumber").$separator.
-             get_string("institution").$separator.
-             get_string("department").$separator.
-             get_string("email");
+        echo implode($separator, array_values($this->userfields));
 
         foreach ($this->columns as $grade_item) {
             echo $separator.$this->format_column_name($grade_item);
@@ -84,11 +102,15 @@ class grade_export_csv extends grade_export {
         $geub = new grade_export_update_buffer();
         $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
         $gui->init();
+
+        $fields = array_keys($this->userfields);
+
         while ($userdata = $gui->next_user()) {
 
             $user = $userdata->user;
 
-            echo $user->firstname.$separator.$user->lastname.$separator.$user->idnumber.$separator.$user->institution.$separator.$user->department.$separator.$user->email;
+            $mapper = function($field) use ($user) { return $user->$field; };
+            echo implode($separator, array_map($mapper, $fields));
 
             foreach ($userdata->grades as $itemid => $grade) {
                 if ($export_tracking) {

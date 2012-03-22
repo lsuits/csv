@@ -26,3 +26,5 @@
 $string['pluginname'] = 'CSV file';
 $string['csv:publish'] = 'Publish CSV grade export';
 $string['csv:view'] = 'Use CSV grade export';
+$string['userfields'] = 'Export user fields';
+$string['userfields_help'] = 'Export these selected user fields along with grades.';

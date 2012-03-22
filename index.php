@@ -18,6 +18,7 @@
 require_once '../../../config.php';
 require_once $CFG->dirroot.'/grade/export/lib.php';
 require_once 'grade_export_csv.php';
+require_once 'grade_export_csv_form.php';
 
 $id = required_param('id', PARAM_INT); // course id
 
@@ -39,7 +40,7 @@ if (!empty($CFG->gradepublishing)) {
     $CFG->gradepublishing = has_capability('gradeexport/csv:publish', $context);
 }
 
-$mform = new grade_export_form(null, array('publishing' => true));
+$mform = new grade_export_csv_form(null, array('publishing' => true));
 
 $groupmode    = groups_get_course_groupmode($course);   // Groups are being used
 $currentgroup = groups_get_course_group($course, true);
