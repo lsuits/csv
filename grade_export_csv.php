@@ -62,6 +62,37 @@ class grade_export_csv extends grade_export {
         }
     }
 
+    public function inject_js() {
+        global $PAGE;
+
+        $module = array(
+            'name' => 'gradeexport_csv',
+            'fullpath' => '/grade/export/csv/module.js',
+            'requires' => array('base', 'dom')
+        );
+
+        $table_indexes = array(
+            'firstname',
+            'lastname',
+            'idnumber',
+            'institution',
+            'department',
+            'email'
+        );
+
+        $cancel_indexes = array();
+        foreach ($table_indexes as $index => $key) {
+            if (isset($this->userfields[$key])) {
+                continue;
+            }
+            $cancel_indexes[$index] = 1;
+        }
+
+        $args = array('indexes' => $cancel_indexes);
+
+        $PAGE->requires->js_init_call('M.gradeexport_csv.init', $args, false, $module);
+    }
+
     public function print_grades() {
         global $CFG;
 
