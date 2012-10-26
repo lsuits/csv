@@ -28,10 +28,6 @@ class grade_export_csv extends grade_export {
         $this->separator = $separator;
     }
 
-    public function __construct($course, $groupid=0, $itemlist='', $export_feedback=false, $updatedgradesonly = false, $displaytype = GRADE_DISPLAY_TYPE_REAL, $decimalpoints = 2, $separator='comma') {
-        parent::__construct($course, $groupid, $itemlist, $export_feedback, $updatedgradesonly, $displaytype, $decimalpoints);
-        $this->separator = $separator;
-    }
 
     public function get_export_params() {
         $params = parent::get_export_params();
@@ -60,6 +56,8 @@ class grade_export_csv extends grade_export {
                 $this->userfields[$key] = $field;
             }
         }
+        parent::process_form($data);
+        print_r($data);
     }
 
     public function inject_js() {
