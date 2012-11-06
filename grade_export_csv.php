@@ -22,6 +22,7 @@ class grade_export_csv extends grade_export {
     public $plugin = 'csv';
 
     public $separator; // default separator
+    public $userfields = array();
 
     public function grade_export_csv($course, $groupid=0, $itemlist='', $export_feedback=false, $updatedgradesonly = false, $displaytype = GRADE_DISPLAY_TYPE_REAL, $decimalpoints = 2, $separator='comma') {
         $this->grade_export($course, $groupid, $itemlist, $export_feedback, $updatedgradesonly, $displaytype, $decimalpoints);
@@ -38,7 +39,15 @@ class grade_export_csv extends grade_export {
         return $params;
     }
 
-    public function process_form($data) {
+    public function process_form($data, $export=false) {
+        
+        // This is hacky, but it works; this entire exporter should be reviewed
+        // ...when there's a nice span of time...
+        // if we are exporting (print_grades()), running the parent method will
+        // blow away $this->columns, and all user selections are lost from the file
+        if(!$export){
+            parent::process_form($data);
+        }
         $this->userfields = array(
             'firstname' => get_string('firstname'),
             'lastname' => get_string('lastname')
@@ -56,8 +65,6 @@ class grade_export_csv extends grade_export {
                 $this->userfields[$key] = $field;
             }
         }
-        parent::process_form($data);
-        print_r($data);
     }
 
     public function inject_js() {
