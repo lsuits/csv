@@ -17,92 +17,81 @@
 
 require_once($CFG->dirroot.'/grade/export/lib.php');
 
-class grade_export_xls extends grade_export {
+class grade_export_csv extends grade_export {
 
-    public $plugin = 'xls';
+    public $plugin = 'csv';
 
     /**
      * To be implemented by child classes
      */
     public function print_grades() {
         global $CFG;
-        require_once($CFG->dirroot.'/lib/excellib.class.php');
+        $this->userfields = array('firstname','lastname','idnumber', 'institution', 'department','email');
 
         $export_tracking = $this->track_exports();
 
         $strgrades = get_string('grades');
 
-    /// Calculate file name
-        $shortname = format_string($this->course->shortname, true, array('context' => get_context_instance(CONTEXT_COURSE, $this->course->id)));
-        $downloadfilename = clean_filename("$shortname $strgrades.xls");
-    /// Creating a workbook
-        $workbook = new MoodleExcelWorkbook("-");
-    /// Sending HTTP headers
-        $workbook->send($downloadfilename);
-    /// Adding the worksheet
-        $myxls =& $workbook->add_worksheet($strgrades);
+        $separator = ",";
 
-    /// Print names of all the fields
-        $myxls->write_string(0,0,get_string("firstname"));
-        $myxls->write_string(0,1,get_string("lastname"));
-        $myxls->write_string(0,2,get_string("idnumber"));
-        $myxls->write_string(0,3,get_string("institution"));
-        $myxls->write_string(0,4,get_string("department"));
-        $myxls->write_string(0,5,get_string("email"));
-        $pos=6;
+        /// Print header to force download
+        if (strpos($CFG->wwwroot, 'https://') === 0) { //https sites - watch out for IE! KB812935 and KB316431
+            @header('Cache-Control: max-age=10');
+            @header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
+            @header('Pragma: ');
+        } else { //normal http - prevent caching at all cost
+            @header('Cache-Control: private, must-revalidate, pre-check=0, post-check=0, max-age=0');
+            @header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
+            @header('Pragma: no-cache');
+        }
+        header("Content-Type: application/download\n");
+        $downloadfilename = clean_filename("{$this->course->shortname} $strgrades");
+        header("Content-Disposition: attachment; filename=\"$downloadfilename.csv\"");
+
+/// Print names of all the fields
+
+            echo implode($separator, array_values($this->userfields));
         foreach ($this->columns as $grade_item) {
-            $myxls->write_string(0, $pos++, $this->format_column_name($grade_item));
+            echo $separator.$this->format_column_name($grade_item);
 
-            /// add a column_feedback column
+            /// add a feedback column
             if ($this->export_feedback) {
-                $myxls->write_string(0, $pos++, $this->format_column_name($grade_item, true));
+                echo $separator.$this->format_column_name($grade_item, true);
             }
         }
+        echo "\n";
 
-    /// Print all the lines of data.
-        $i = 0;
+/// Print all the lines of data.
         $geub = new grade_export_update_buffer();
         $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
-        $gui->require_active_enrolment($this->onlyactive);
         $gui->init();
+
+
+        $fields = $this->userfields;
+
         while ($userdata = $gui->next_user()) {
-            $i++;
+
             $user = $userdata->user;
 
-            $myxls->write_string($i,0,$user->firstname);
-            $myxls->write_string($i,1,$user->lastname);
-            $myxls->write_string($i,2,$user->idnumber);
-            $myxls->write_string($i,3,$user->institution);
-            $myxls->write_string($i,4,$user->department);
-            $myxls->write_string($i,5,$user->email);
-            $j=6;
+            $mapper = function($field) use ($user) { return $user->$field; };
+            echo implode($separator, array_map($mapper, $fields));
+
             foreach ($userdata->grades as $itemid => $grade) {
                 if ($export_tracking) {
                     $status = $geub->track($grade);
                 }
 
-                $gradestr = $this->format_grade($grade);
-                if (is_numeric($gradestr)) {
-                    $myxls->write_number($i,$j++,$gradestr);
-                }
-                else {
-                    $myxls->write_string($i,$j++,$gradestr);
-                }
+                echo $separator.$this->format_grade($grade);
 
-                // writing feedback if requested
                 if ($this->export_feedback) {
-                    $myxls->write_string($i, $j++, $this->format_feedback($userdata->feedbacks[$itemid]));
+                    echo $separator.$this->format_feedback($userdata->feedbacks[$itemid]);
                 }
             }
+            echo "\n";
         }
         $gui->close();
         $geub->close();
 
-    /// Close the workbook
-        $workbook->close();
-
         exit;
     }
 }
-
-

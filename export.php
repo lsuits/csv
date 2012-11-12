@@ -17,7 +17,7 @@
 
 require_once '../../../config.php';
 require_once $CFG->dirroot.'/grade/export/lib.php';
-require_once 'grade_export_xls.php';
+require_once 'grade_export_csv.php';
 
 $id                = required_param('id', PARAM_INT); // course id
 $groupid           = optional_param('groupid', 0, PARAM_INT);
@@ -36,7 +36,7 @@ require_login($course);
 $context = get_context_instance(CONTEXT_COURSE, $id);
 
 require_capability('moodle/grade:export', $context);
-require_capability('gradeexport/xls:view', $context);
+require_capability('gradeexport/csv:view', $context);
 
 if (groups_get_course_groupmode($COURSE) == SEPARATEGROUPS and !has_capability('moodle/site:accessallgroups', $context)) {
     if (!groups_is_member($groupid, $USER->id)) {
@@ -45,7 +45,7 @@ if (groups_get_course_groupmode($COURSE) == SEPARATEGROUPS and !has_capability('
 }
 
 // print all the exported data here
-$export = new grade_export_xls($course, $groupid, $itemids, $export_feedback, $updatedgradesonly, $displaytype, $decimalpoints, $onlyactive);
+$export = new grade_export_csv($course, $groupid, $itemids, $export_feedback, $updatedgradesonly, $displaytype, $decimalpoints, $onlyactive);
 $export->print_grades();
 
 
