@@ -17,152 +17,89 @@
 
 require_once($CFG->dirroot.'/grade/export/lib.php');
 
-class grade_export_csv extends grade_export {
+class grade_export_xls extends grade_export {
 
-    public $plugin = 'csv';
+    public $plugin = 'xls';
 
-    public $separator; // default separator
-    public $userfields = array();
-
-    public function grade_export_csv($course, $groupid=0, $itemlist='', $export_feedback=false, $updatedgradesonly = false, $displaytype = GRADE_DISPLAY_TYPE_REAL, $decimalpoints = 2, $separator='comma') {
-        $this->grade_export($course, $groupid, $itemlist, $export_feedback, $updatedgradesonly, $displaytype, $decimalpoints);
-        $this->separator = $separator;
-    }
-
-
-    public function get_export_params() {
-        $params = parent::get_export_params();
-        $params['separator'] = $this->separator;
-        foreach($this->userfields as $key => $field) {
-            $params[$key] = 1;
-        }
-        return $params;
-    }
-
-    public function process_form($data, $export=false) {
-        
-        // This is hacky, but it works; this entire exporter should be reviewed
-        // ...when there's a nice span of time...
-        // if we are exporting (print_grades()), running the parent method will
-        // blow away $this->columns, and all user selections are lost from the file
-        if(!$export){
-            parent::process_form($data);
-        }
-        $this->userfields = array(
-            'firstname' => get_string('firstname'),
-            'lastname' => get_string('lastname')
-        );
-
-        $fields = array(
-            'idnumber' => get_string('idnumber'),
-            'email' => get_string('email'),
-            'institution' => get_string('institution'),
-            'department' => get_string('department')
-        );
-
-        foreach ($fields as $key => $field) {
-            if (isset($data->$key)) {
-                $this->userfields[$key] = $field;
-            }
-        }
-    }
-
-    public function inject_js() {
-        global $PAGE;
-
-        $module = array(
-            'name' => 'gradeexport_csv',
-            'fullpath' => '/grade/export/csv/module.js',
-            'requires' => array('base', 'dom')
-        );
-
-        $table_indexes = array(
-            'firstname',
-            'lastname',
-            'idnumber',
-            'institution',
-            'department',
-            'email'
-        );
-
-        $cancel_indexes = array();
-        foreach ($table_indexes as $index => $key) {
-            if (isset($this->userfields[$key])) {
-                continue;
-            }
-            $cancel_indexes[$index] = 1;
-        }
-
-        $args = array('indexes' => $cancel_indexes);
-
-        $PAGE->requires->js_init_call('M.gradeexport_csv.init', $args, false, $module);
-    }
-
+    /**
+     * To be implemented by child classes
+     */
     public function print_grades() {
         global $CFG;
+        require_once($CFG->dirroot.'/lib/excellib.class.php');
 
         $export_tracking = $this->track_exports();
 
         $strgrades = get_string('grades');
 
-        $separator = ",";
+    /// Calculate file name
+        $shortname = format_string($this->course->shortname, true, array('context' => get_context_instance(CONTEXT_COURSE, $this->course->id)));
+        $downloadfilename = clean_filename("$shortname $strgrades.xls");
+    /// Creating a workbook
+        $workbook = new MoodleExcelWorkbook("-");
+    /// Sending HTTP headers
+        $workbook->send($downloadfilename);
+    /// Adding the worksheet
+        $myxls =& $workbook->add_worksheet($strgrades);
 
-        /// Print header to force download
-        if (strpos($CFG->wwwroot, 'https://') === 0) { //https sites - watch out for IE! KB812935 and KB316431
-            @header('Cache-Control: max-age=10');
-            @header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
-            @header('Pragma: ');
-        } else { //normal http - prevent caching at all cost
-            @header('Cache-Control: private, must-revalidate, pre-check=0, post-check=0, max-age=0');
-            @header('Expires: '. gmdate('D, d M Y H:i:s', 0) .' GMT');
-            @header('Pragma: no-cache');
-        }
-        header("Content-Type: application/download\n");
-        $downloadfilename = clean_filename("{$this->course->shortname} $strgrades");
-        header("Content-Disposition: attachment; filename=\"$downloadfilename.csv\"");
-
-/// Print names of all the fields
-        echo implode($separator, array_values($this->userfields));
-
+    /// Print names of all the fields
+        $myxls->write_string(0,0,get_string("firstname"));
+        $myxls->write_string(0,1,get_string("lastname"));
+        $myxls->write_string(0,2,get_string("idnumber"));
+        $myxls->write_string(0,3,get_string("institution"));
+        $myxls->write_string(0,4,get_string("department"));
+        $myxls->write_string(0,5,get_string("email"));
+        $pos=6;
         foreach ($this->columns as $grade_item) {
-            echo $separator.$this->format_column_name($grade_item);
+            $myxls->write_string(0, $pos++, $this->format_column_name($grade_item));
 
-            /// add a feedback column
+            /// add a column_feedback column
             if ($this->export_feedback) {
-                echo $separator.$this->format_column_name($grade_item, true);
+                $myxls->write_string(0, $pos++, $this->format_column_name($grade_item, true));
             }
         }
-        echo "\n";
 
-/// Print all the lines of data.
+    /// Print all the lines of data.
+        $i = 0;
         $geub = new grade_export_update_buffer();
         $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
+        $gui->require_active_enrolment($this->onlyactive);
         $gui->init();
-
-        $fields = array_keys($this->userfields);
-
         while ($userdata = $gui->next_user()) {
-
+            $i++;
             $user = $userdata->user;
 
-            $mapper = function($field) use ($user) { return $user->$field; };
-            echo implode($separator, array_map($mapper, $fields));
-
+            $myxls->write_string($i,0,$user->firstname);
+            $myxls->write_string($i,1,$user->lastname);
+            $myxls->write_string($i,2,$user->idnumber);
+            $myxls->write_string($i,3,$user->institution);
+            $myxls->write_string($i,4,$user->department);
+            $myxls->write_string($i,5,$user->email);
+            $j=6;
             foreach ($userdata->grades as $itemid => $grade) {
                 if ($export_tracking) {
                     $status = $geub->track($grade);
                 }
 
-                echo $separator.$this->format_grade($grade);
+                $gradestr = $this->format_grade($grade);
+                if (is_numeric($gradestr)) {
+                    $myxls->write_number($i,$j++,$gradestr);
+                }
+                else {
+                    $myxls->write_string($i,$j++,$gradestr);
+                }
 
+                // writing feedback if requested
                 if ($this->export_feedback) {
-                    echo $separator.$this->format_feedback($userdata->feedbacks[$itemid]);
+                    $myxls->write_string($i, $j++, $this->format_feedback($userdata->feedbacks[$itemid]));
                 }
             }
-            echo "\n";
         }
         $gui->close();
         $geub->close();
+
+    /// Close the workbook
+        $workbook->close();
 
         exit;
     }

@@ -17,12 +17,11 @@
 
 require_once '../../../config.php';
 require_once $CFG->dirroot.'/grade/export/lib.php';
-require_once 'grade_export_csv.php';
-require_once 'grade_export_csv_form.php';
+require_once 'grade_export_xls.php';
 
 $id = required_param('id', PARAM_INT); // course id
 
-$PAGE->set_url('/grade/export/csv/index.php', array('id'=>$id));
+$PAGE->set_url('/grade/export/xls/index.php', array('id'=>$id));
 
 if (!$course = $DB->get_record('course', array('id'=>$id))) {
     print_error('nocourseid');
@@ -32,15 +31,15 @@ require_login($course);
 $context = get_context_instance(CONTEXT_COURSE, $id);
 
 require_capability('moodle/grade:export', $context);
-require_capability('gradeexport/csv:view', $context);
+require_capability('gradeexport/xls:view', $context);
 
-print_grade_page_head($COURSE->id, 'export', 'csv', get_string('exportto', 'grades') . ' ' . get_string('pluginname', 'gradeexport_csv'));
+print_grade_page_head($COURSE->id, 'export', 'xls', get_string('exportto', 'grades') . ' ' . get_string('pluginname', 'gradeexport_xls'));
 
 if (!empty($CFG->gradepublishing)) {
-    $CFG->gradepublishing = has_capability('gradeexport/csv:publish', $context);
+    $CFG->gradepublishing = has_capability('gradeexport/xls:publish', $context);
 }
 
-$mform = new grade_export_csv_form(null, array('publishing' => true));
+$mform = new grade_export_form(null, array('publishing' => true));
 
 $groupmode    = groups_get_course_groupmode($course);   // Groups are being used
 $currentgroup = groups_get_course_group($course, true);
@@ -52,11 +51,10 @@ if ($groupmode == SEPARATEGROUPS and !$currentgroup and !has_capability('moodle/
 
 // process post information
 if ($data = $mform->get_data()) {
-    $export = new grade_export_csv($course, $currentgroup, '', false, false, $data->display, $data->decimals);
+    $export = new grade_export_xls($course, $currentgroup, '', false, false, $data->display, $data->decimals, $data->export_onlyactive);
 
-    // print the grades on screen for feedback
+    // print the grades on screen for feedbacks
     $export->process_form($data);
-    $export->inject_js();
     $export->print_continue();
     $export->display_preview();
     echo $OUTPUT->footer();
