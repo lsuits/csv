@@ -19,6 +19,81 @@ require_once($CFG->dirroot.'/grade/export/lib.php');
 
 class grade_export_csv extends grade_export {
 
+public function csv_display_preview($require_user_idnumber=false) {
+    global $OUTPUT;
+    echo $OUTPUT->heading(get_string('previewrows', 'grades'));
+
+    echo '<table>';
+    echo '<tr>';
+    echo '<th>'.get_string("firstname")."</th>".
+          '<th>'.get_string("lastname")."</th>".
+          '<th>'.get_string("idnumber")."</th>".
+          '<th>'.get_string("department")."</th>".
+          '<th>'.get_string("email")."</th>";
+    foreach ($this->columns as $grade_item) {
+        echo '<th>'.$this->format_column_name($grade_item).'</th>';
+
+        /// add a column_feedback column
+        if ($this->export_feedback) {
+            echo '<th>'.$this->format_column_name($grade_item, true).'</th>';
+        }
+    }
+    echo '</tr>';
+    /// Print all the lines of data.
+
+    $i = 0;
+    $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
+    $gui->require_active_enrolment($this->onlyactive);
+    $gui->init();
+    while ($userdata = $gui->next_user()) {
+        // number of preview rows
+        if ($this->previewrows and $this->previewrows <= $i) {
+            break;
+        }
+        $user = $userdata->user;
+        if ($require_user_idnumber and empty($user->idnumber)) {
+            // some exports require user idnumber so we can match up students when importing the data
+            continue;
+        }
+
+        $gradeupdated = false; // if no grade is update at all for this user, do not display this row
+        $rowstr = '';
+        foreach ($this->columns as $itemid=>$unused) {
+            $gradetxt = $this->format_grade($userdata->grades[$itemid]);
+
+            // get the status of this grade, and put it through track to get the status
+            $g = new grade_export_update_buffer();
+            $grade_grade = new grade_grade(array('itemid'=>$itemid, 'userid'=>$user->id));
+            $status = $g->track($grade_grade);
+
+            if ($this->updatedgradesonly && ($status == 'nochange' || $status == 'unknown')) {
+                $rowstr .= '<td>'.get_string('unchangedgrade', 'grades').'</td>';
+            } else {
+                $rowstr .= "<td>$gradetxt</td>";
+                $gradeupdated = true;
+            }
+
+            if ($this->export_feedback) {
+                $rowstr .=  '<td>'.$this->format_feedback($userdata->feedbacks[$itemid]).'</td>';
+            }
+        }
+
+        // if we are requesting updated grades only, we are not interested in this user at all
+        if (!$gradeupdated && $this->updatedgradesonly) {
+            continue;
+        }
+
+        echo '<tr>';
+        echo "<td>$user->firstname</td><td>$user->lastname</td><td>$user->idnumber</td><td>$user->department</td><td>$user->email</td>";
+        echo $rowstr;
+        echo "</tr>";
+
+        $i++; // increment the counter
+    }
+    echo '</table>';
+    $gui->close();
+}
+
     public $plugin = 'csv';
 
     /**
@@ -26,7 +101,7 @@ class grade_export_csv extends grade_export {
      */
     public function print_grades() {
         global $CFG;
-        $this->userfields = array('firstname','lastname','idnumber', 'institution', 'department','email');
+        $this->userfields = array('firstname','lastname','idnumber', 'department','email');
 
         $export_tracking = $this->track_exports();
 

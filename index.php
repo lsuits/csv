@@ -56,7 +56,7 @@ if ($data = $mform->get_data()) {
     // print the grades on screen for feedbacks
     $export->process_form($data);
     $export->print_continue();
-    $export->display_preview();
+    $export->csv_display_preview();
     echo $OUTPUT->footer();
     exit;
 }
